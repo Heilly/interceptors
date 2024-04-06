@@ -5,31 +5,38 @@ Para que este interceptor realmente intercepte solicitudes, debe configurarlo ``
 
 
 ## Configuración
+en el ``app.config.ts``
 <pre>
-    ```bootstrapApplication(AppComponent, {providers: [
-    provideHttpClient(
-        withInterceptors([loggingInterceptor, cachingInterceptor]),
-    )
-    ]});```
+    export const appConfig: ApplicationConfig = {
+    providers: [
+        provideRouter(routes),
+        provideHttpClient(
+        withInterceptors( [interceptorInterceptor] )
+        )
+    ]
+    };
 </pre>
 
-## Code scaffolding
+## Modificar solicitudes
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+``HttpRequest`` y ``HttpResponse`` no pueden modificarlos directamente. En cambio, los interceptores aplican mutaciones clonando estos objetos mediante la operación ``.clone()``  y especificando qué propiedades deben mutarse en la nueva instancia. Esto hacer actualizaciones (como ``HttpHeaders`` o ``HttpParams``).
+<pre>
+    const reqWithHeader = req.clone({
+    headers: req.headers.set('X-New-Header', 'new header value'), });
+</pre>
 
-## Build
+## Inyección de dependencia en interceptores.
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+<pre>
+    export function authInterceptor(req: HttpRequest<unknown>, next: HttpHandlerFn) {
 
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
-# interceptors
+        // Inject the current `AuthService` and use it to get an authentication token:
+        const authToken = inject(AuthService).getAuthToken();
+        
+        // Clone the request to add the authentication header.
+        const newReq = req.clone({headers: {
+            req.headers.append('X-Authentication-Token', authToken),
+        }});
+        return next(newReq);
+    }
+</pre>
